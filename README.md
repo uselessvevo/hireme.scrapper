@@ -1,4 +1,4 @@
-# hire.me scrapper
+# hireme.scrapper
 
 Before the start, create `.env` file with next fields:
 
