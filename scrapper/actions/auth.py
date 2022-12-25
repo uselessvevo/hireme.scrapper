@@ -4,7 +4,7 @@ from pyppeteer.page import Page
 from scrapper.loader import logger
 from scrapper.structs import User
 from core.redis import get_redis, publish_user_message
-from scrapper.actions.filters import filter_page
+from scrapper.actions.filters import open_filter_page
 from scrapper.utils import remove_user_session_folder
 
 
@@ -29,13 +29,13 @@ async def check_is_authorized(page: Page, user: User) -> None:
     if login_button_selector:
         login_button_text = await page.evaluate("(element) => element.textContent", login_button_selector)
         if login_button_text == "Войти":
-            await login_page(page, user)
-            await remove_user_session_folder(user.id)
+            await open_login_page(page, user)
+            # await remove_user_session_folder(user.id)
         else:
-            await filter_page(page, user)
+            await open_filter_page(page, user)
 
 
-async def login_page(page: Page, user: User) -> None:
+async def open_login_page(page: Page, user: User) -> None:
     await page.goto("https://hh.ru/account/login?backurl=%2F&hhtmFrom=main")
 
     login_type_xpath = "(//button[@class='bloko-link bloko-link_pseudo'])[2]"
@@ -45,7 +45,7 @@ async def login_page(page: Page, user: User) -> None:
     if login_type_selector:
         await login_by_email(page, login_type_selector, user)
     else:
-        await catch_captcha(page, user)
+        await get_captcha(page, user)
 
 
 async def login_by_email(page: Page, selector: object, user: User) -> None:
@@ -69,7 +69,7 @@ async def login_by_email(page: Page, selector: object, user: User) -> None:
         await page.keyboard.press("Enter")
 
 
-async def catch_captcha(page: Page, user: User):
+async def get_captcha(page: Page, user: User):
     # Хватаем капчу
     selector = (
         '//*[@id="HH-React-Root"]'
@@ -87,7 +87,7 @@ async def catch_captcha(page: Page, user: User):
         await publish_user_message(user, image_path)
 
         sub = redis.pubsub()
-        await sub.subscribe("%s:%s" % (user.curatorId, user.id))
+        await sub.subscribe("%s:%s" % (user.curator_id, user.id))
 
         async for message in sub.listen():
             if message:

@@ -26,7 +26,7 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 # Pyppeter settings
 PUPPETER_LAUNCH_SETTINGS: dict = {
-    "headless": True,
+    "headless": False,
     "isMobile": False,
     "fullscreen": True,
     "userDataDir": BASE_DIR / "session",

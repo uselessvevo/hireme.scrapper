@@ -12,4 +12,4 @@ async def get_redis() -> aioredis.StrictRedis:
 async def publish_user_message(user, message: Any, prefix: str = None) -> None:
     redis = await get_redis()
     prefix = "%s_" % prefix if prefix else ""
-    await redis.publish("%s%s:%s" % (prefix, user.curatorId, user.id), message)
+    await redis.publish("%s%s:%s" % (prefix, user.curator_id, user.id), message)

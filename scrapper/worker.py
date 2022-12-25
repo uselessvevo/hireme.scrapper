@@ -3,17 +3,19 @@ from pathlib import Path
 
 import asyncio
 import pyppeteer
+from pyppeteer import errors
 
 from scrapper.exceptions import TaskNotFound
 from scrapper.loader import db, logger
 from scrapper.structs import User
 from core.config import PUPPETER_LAUNCH_SETTINGS
 from scrapper.actions.auth import check_is_authorized
+from scrapper.utils import remove_user_session_folder
 
 
 async def spawn_scrapper_worker(queue: asyncio.Queue) -> None:
     logger.info(f"Queue: {id(queue)} {queue}")
-    user_data = await queue.get()
+    user_data: User = await queue.get()
 
     # Создаём или выбираем директорию с сессией пользователя
 
@@ -33,12 +35,17 @@ async def spawn_scrapper_worker(queue: asyncio.Queue) -> None:
             await asyncio.sleep(random.uniform(1, 1.5))
             await browser.close()
 
+        except errors.NetworkError as e:
+            await remove_user_session_folder(user_data.id)
+            await spawn_scrapper_worker(queue)
+            logger.critical("Restarting queue for user %s. %s" % (user_data.id, e))
+
         except Exception as e:
-            logger.critical("Error on %s. %s" % (queue, str(e)))
+            logger.critical("Error on queue for user %s. %s" % (user_data.id, str(e)))
 
         finally:
             queue.task_done()
-            logger.info("Done with queue - %s" % queue)
+            logger.info("Done with queue for user %s" % user_data.id)
 
 
 async def get_task_by_name(task_name: str) -> asyncio.Task:
@@ -96,15 +103,15 @@ async def prepare_scrapper_task(curator_id: int, user_id: int) -> None:
     user = dict(user)
     user_model: User = User(
         id=user.get("id"),
-        curatorId=curator_id,  # user.get("curatorId"),
+        curator_id=curator_id,  # user.get("curatorId"),
         firstname=user.get("firstname"),
         middlename=user.get("middlename"),
         patronymic=user.get("patronymic"),
         resumeUrl=user.get("resume_url"),
         email=user.get("email"),
         password=user.get("password"),
-        isEmployee=user.get("is_employee"),
-        resumeFilter=user.get("filter_url"),
+        is_employee=user.get("is_employee"),
+        resume_url=user.get("filter_url"),
     )
     await queue.put(user_model)
     await queue.join()
