@@ -8,8 +8,9 @@ class User:
     firstname: str
     middlename: str
     patronymic: str
-    resumeUrl: str
     email: str
     password: str
     is_employee: bool
     resume_url: str
+    filter_url: str
+    filter_data: dict = dt.field(default_factory=dict)
