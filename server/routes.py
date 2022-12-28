@@ -12,9 +12,9 @@ async def get_active_tasks(request: web.Request) -> web.Response:
     pass
 
 
-async def cancel_task(request: web.Request) -> web.Response:
+async def cancel_tasks(request: web.Request) -> web.Response:
     pass
 
 
-async def restart_task(request: web.Request) -> web.Response:
+async def restart_tasks(request: web.Request) -> web.Response:
     pass

@@ -9,7 +9,7 @@ from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from aiojobs.aiohttp import setup as aiojobs_setup
 
-from server.routes import start_task, get_active_tasks, cancel_task, restart_task
+from server.routes import start_task, get_active_tasks, cancel_tasks, restart_tasks
 
 
 def setup_server() -> web.Application:
@@ -28,8 +28,8 @@ def setup_server() -> web.Application:
 
 async def setup_routes(web_app: web.Application) -> web.Application:
     web_app.router.add_post("/start-task", start_task)
-    web_app.router.add_get("/cancel-task", cancel_task)
-    web_app.router.add_get("/restart-task", restart_task)
+    web_app.router.add_get("/cancel-task", cancel_tasks)
+    web_app.router.add_get("/restart-task", restart_tasks)
     web_app.router.add_get("/active-tasks", get_active_tasks)
 
     return web_app
