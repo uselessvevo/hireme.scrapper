@@ -36,7 +36,7 @@ async def run_worker(queue: asyncio.Queue) -> None:
     with suppress(asyncio.CancelledError):
         while True:
             user_data: User = await queue.get()
-            if queue.empty() or user_data is None:
+            if user_data is None:
                 logger.warning("Queue %s is empty or `NoneType`" % queue)
                 break
 

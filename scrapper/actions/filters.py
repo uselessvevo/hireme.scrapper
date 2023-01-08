@@ -46,7 +46,11 @@ async def get_pages_count(page: Page) -> typing.Union[int, None]:
     """
     Get pages count/amount
     """
-    await page.evaluate("{window.scrollBy(0, document.body.scrollHeight);}")
+    try:
+        await page.evaluate("{window.scrollBy(0, document.body.scrollHeight);}")
+    except Exception:
+        pass
+
     try:
         selector: str = "(//span[@class='pager-item-not-in-short-range']//a//span//text())[3]"
         pager_selector = await page.waitForXPath(
@@ -84,6 +88,7 @@ async def get_vacancies_items(page: Page, user: User) -> None:
                                 user_id = $1 
                                 AND url = $2
                                 AND parsed = TRUE
+                                AND status NOT IN ('INVITATION', 'DISCARD')
                             """,
                             user.id,
                             vacancy_url_xpath
