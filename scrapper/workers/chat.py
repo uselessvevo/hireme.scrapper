@@ -120,7 +120,9 @@ async def prepare_task(workers: int = None) -> None:
     workers = 1 if not workers else workers
 
     for _ in range(workers):
-        tasks.append(asyncio.create_task(run_worker(queue)))
+        task = asyncio.create_task(run_worker(queue))
+        task.set_name(str(uuid.uuid4()))
+        tasks.append(task)
 
     for user in users:
         user = dict(user)
