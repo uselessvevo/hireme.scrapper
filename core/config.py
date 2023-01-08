@@ -24,15 +24,17 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = os.getenv("REDIS_DB")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
+CRONTAB_SETTINGS = '* * * * *'
+
 # Pyppeter settings
 PUPPETER_LAUNCH_SETTINGS: dict = {
     "headless": False,
     "isMobile": False,
-    "fullscreen": True,
+    "fullscreen": False,
     "userDataDir": BASE_DIR / "session",
     "args": [
         "--no-sandbox",
-        "--start-maximized",
+        # "--start-maximized",
     ]
 }
 

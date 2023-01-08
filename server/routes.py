@@ -1,6 +1,6 @@
 from aiohttp import web
 from aiojobs.aiohttp import spawn
-from scrapper.worker import prepare_task
+from scrapper.workers.vacancies import prepare_task
 
 
 async def start_task(request: web.Request) -> web.Response:

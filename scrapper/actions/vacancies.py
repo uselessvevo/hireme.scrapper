@@ -201,19 +201,35 @@ async def parse_vacancy_stylized_page_v2(page: Page) -> typing.Union[dict, None]
 
 
 async def send_letter(page: Page, user: User) -> None:
-    submit_button_xpath = await page.waitForXPath(
-        "(//a[contains(@class,'bloko-button bloko-button_kind-success')])[2]",
-        visible=True, timeout=2000
-    )
+    try:
+        submit_button_xpath = await page.waitForXPath(
+            "//a[contains(@class,'bloko-button bloko-button_kind-success')]",
+            visible=True, timeout=2000
+        )
+    except Exception:
+        submit_button_xpath = await page.waitForXPath(
+            "(//a[contains(@class,'bloko-button bloko-button_kind-success')])[2]",
+            visible=True, timeout=2000
+        )
     await submit_button_xpath.focus()
     await submit_button_xpath.click()
 
     send_letter_button_xpath = await page.waitForXPath(
-        "//span[text()='Написать сопроводительное']",
-        visible=True, timeout=5000
+        '//*[@id="HH-React-Root"]/div/div[4]/div[1]/div/div/'
+        'div/div/div[1]/div[4]/div/div[3]/div/div[1]/div/div/div[10]/button',
+        visible=True, timeout=2000
     )
     await send_letter_button_xpath.focus()
     await send_letter_button_xpath.click()
+
+    with suppress(Exception):
+        send_additional_info_xpath = await page.waitForXPath(
+            '//*[@id="HH-React-Root"]/div/div[4]/div[1]/div/div/div[1]/h1',
+            visible=True, timeout=2000
+        )
+        send_additional_info_xpath = await page.evaluate("(element) => element.innerText", send_additional_info_xpath)
+        if "отправить отклик на вакансию" in send_additional_info_xpath.lower():
+            return
 
     letter_form_xpath = await page.waitForXPath(
         "//textarea[@name='text']",

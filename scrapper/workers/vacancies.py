@@ -1,4 +1,7 @@
+import copy
 import random
+import uuid
+from contextlib import suppress
 from pathlib import Path
 
 import asyncio
@@ -7,46 +10,54 @@ import pyppeteer
 from core.redis import publish_user_message
 from core.database import DatabaseAsync
 from core.config import PUPPETER_LAUNCH_SETTINGS
+from scrapper.actions.filters import open_filter_page
 
 from scrapper.structs import User
 from scrapper.loader import logger
-from scrapper.actions.auth import check_is_authorized
+from scrapper.actions.auth import open_login_page, check_is_authorized
 
 
 async def run_worker(queue: asyncio.Queue) -> None:
     logger.info(f"Queue: {id(queue)} {queue}")
-    user_data: User = await queue.get()
 
     # Создаём или выбираем директорию с сессией пользователя
 
-    user_data_dir: Path = PUPPETER_LAUNCH_SETTINGS.get("userDataDir") / str(user_data.id)
+    launch_settings = copy.copy(PUPPETER_LAUNCH_SETTINGS)
+    user_data_dir: Path = launch_settings.get("userDataDir") / str(uuid.uuid4())
     if not user_data_dir.exists():
         user_data_dir.mkdir()
 
-    PUPPETER_LAUNCH_SETTINGS["userDataDir"] = str(user_data_dir)
+    launch_settings["userDataDir"] = str(user_data_dir)
 
-    browser = await pyppeteer.launch(**PUPPETER_LAUNCH_SETTINGS)
+    browser = await pyppeteer.launch(**launch_settings)
     page = await browser.newPage()
     await page.setViewport({"width": 1920, "height": 1280})
 
-    while True:
-        try:
-            await check_is_authorized(page, user_data)
-            await asyncio.sleep(random.uniform(1, 1.5))
-            await browser.close()
+    with suppress(asyncio.CancelledError):
+        while True:
+            user_data: User = await queue.get()
+            if queue.empty() or user_data is None:
+                logger.warning("Queue %s is empty or `NoneType`" % queue)
+                break
 
-        except Exception as e:
-            logger.critical("Error on queue for user %s. %s" % (user_data.id, str(e)))
+            try:
+                await check_is_authorized(page, user_data, open_filter_page, open_login_page)
+                await browser.close()
 
-        finally:
-            queue.task_done()
-            logger.info("Done with queue for user %s" % user_data.id)
+            except Exception as e:
+                logger.critical("[%s] %s" % (user_data.id, str(e)))
+
+            finally:
+                logger.info("Done with queue for user %s" % user_data.id)
+                queue.task_done()
+
+    user_data_dir.rmdir()
+    logger.info("Folder %s deleted" % user_data_dir.name)
 
 
 async def prepare_task(
     curator_id: int,
     user_id: int,
-    filter_data: dict = None
 ) -> None:
     async with DatabaseAsync() as conn:
         user = await conn.fetchrow(

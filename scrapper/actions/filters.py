@@ -24,7 +24,7 @@ async def open_filter_page(page: Page, user: User) -> None:
         "&enable_snippets=true"
         "&page=0" % user.resume_url
     )
-    for page_number in range(await get_pages_count(page) or 1):
+    for page_number in range(await get_pages_count(page)):
         # No vacancies were found
         with suppress(Exception):
             not_found_xpath = await page.waitForXPath(
@@ -57,7 +57,7 @@ async def get_pages_count(page: Page) -> typing.Union[int, None]:
             return int(pages_count)
 
     except Exception:
-        return
+        return 1
 
 
 async def get_vacancies_items(page: Page, user: User) -> None:

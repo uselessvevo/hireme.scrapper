@@ -3,11 +3,13 @@ import asyncio
 from scrapper.exceptions import TaskNotFound
 from scrapper.loader import logger
 
-from scrapper.worker import loop
+
+async def get_all_tasks_names() -> set[str]:
+    return set(i.get_name() for i in asyncio.all_tasks(asyncio.get_event_loop()))
 
 
 async def get_task_by_name(task_name: str) -> asyncio.Task:
-    tasks = asyncio.all_tasks(loop)
+    tasks = asyncio.all_tasks(asyncio.get_event_loop())
     for task in tasks:
         if task.get_name() == task_name:
             return task

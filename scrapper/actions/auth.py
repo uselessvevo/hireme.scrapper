@@ -1,21 +1,35 @@
+import typing
 import uuid
 from pyppeteer.page import Page
 
 from scrapper.loader import logger
 from scrapper.structs import User
 from core.redis import get_redis, publish_user_message
-from scrapper.actions.filters import open_filter_page
-from scrapper.utils import remove_user_session_folder
 
 
-async def check_is_authorized(page: Page, user: User) -> None:
+async def logout(page: Page, user: User) -> None:
+    logout_button_xpath = await page.waitForXPath(
+        "//button[@data-qa='mainmenu_logoffUser']",
+        visible=True, timeout=1000
+    )
+    logout_button_xpath.focus()
+    logout_button_xpath.click()
+    logger.info("Logout: %s" % user.id)
+
+
+async def check_is_authorized(
+    page: Page,
+    user: User,
+    success_method: typing.Coroutine,
+    failure_method: typing.Coroutine
+) -> None:
     """
     Go to the filter page if user is authorized, else authorize again
     """
-    await page.goto("https://hh.ru/search/vacancy")
+    await page.goto("https://hh.ru/?hhtmFrom=account_login")
     try:
         login_button_selector = await page.waitForXPath(
-            "//a[@data-page-analytics-event='login_button_header.desktop']",
+            '//*[@id="HH-React-Root"]/div/div[3]/div/div/div/div/div[5]/a',
             visible=True, timeout=1000
         )
     except Exception:
@@ -29,10 +43,10 @@ async def check_is_authorized(page: Page, user: User) -> None:
     if login_button_selector:
         login_button_text = await page.evaluate("(element) => element.textContent", login_button_selector)
         if login_button_text == "Войти":
-            await open_login_page(page, user)
-            # await remove_user_session_folder(user.id)
+            await failure_method(page, user)
+            await success_method(page, user)
         else:
-            await open_filter_page(page, user)
+            await success_method(page, user)
 
 
 async def open_login_page(page: Page, user: User) -> None:
