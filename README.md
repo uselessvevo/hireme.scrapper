@@ -1,6 +1,9 @@
 # hireme.scrapper
 
-Before the start, create `.env` file with next fields:
+Before the start:
+1. Create python virtualenv and install requirements
+2. Start redis server
+3. Edit or create `.env` file with the next fields:
 
 * DB_USER
 * DB_PASSWORD
