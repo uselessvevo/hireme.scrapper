@@ -28,7 +28,7 @@ CRONTAB_SETTINGS = '* * * * *'
 
 # Pyppeter settings
 PUPPETER_LAUNCH_SETTINGS: dict = {
-    "headless": False,
+    "headless": True,
     "isMobile": False,
     "fullscreen": False,
     "userDataDir": BASE_DIR / "session",

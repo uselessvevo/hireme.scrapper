@@ -1,4 +1,5 @@
 import copy
+import shutil
 import uuid
 from contextlib import suppress
 
@@ -48,6 +49,9 @@ async def run_worker(queue: asyncio.Queue) -> None:
             try:
                 await check_is_authorized(page, user_data, open_chat_page, open_login_page)
                 await browser.close()
+                user_data_dir.chmod(777)
+                shutil.rmtree(str(user_data_dir), ignore_errors=True)
+                logger.info("Folder %s deleted" % user_data_dir.name)
 
             except Exception as e:
                 logger.critical("[%s] %s" % (user_data.id, str(e)))
@@ -55,11 +59,6 @@ async def run_worker(queue: asyncio.Queue) -> None:
             finally:
                 logger.info("Done with queue for user %s %s" % (user_data.id, user_data_dir))
                 queue.task_done()
-
-    # await page.close()
-    # await browser.close()
-    user_data_dir.rmdir()
-    logger.info("Folder %s deleted" % user_data_dir.name)
 
 
 async def get_users(offset) -> list[asyncpg.Record]:
@@ -98,10 +97,13 @@ async def get_users(offset) -> list[asyncpg.Record]:
 @aiocron.crontab(CRONTAB_SETTINGS)
 async def prepare_task(workers: int = None) -> None:
     redis = await get_redis()
-    offset = int(await redis.get("scrapper_offset")) or 0
+    offset = await redis.get("scrapper_offset")
+    offset = int(offset) if offset else 0
+    logger.info("Current offset equal %s" % offset)
 
     users = await get_users(offset)
     if not users:
+        offset = 0
         await redis.set("scrapper_offset", 0)
         users = await get_users(0)
 
@@ -154,6 +156,5 @@ if __name__ == "__main__":
     # loop = asyncio.get_event_loop()
     # loop.create_task(prepare_task())
     # loop.run_forever()
-
     prepare_task.start()
     asyncio.get_event_loop().run_forever()

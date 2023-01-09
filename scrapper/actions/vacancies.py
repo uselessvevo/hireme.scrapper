@@ -1,3 +1,4 @@
+import re
 import typing
 from contextlib import suppress
 
@@ -32,12 +33,13 @@ async def open_vacancy_page(page: Page, user: User, vacancy_url: str) -> None:
                     await conn.execute(
                         """
                         INSERT INTO 
-                            vacancies (id, user_id, url, content, percentage, title, salary, parsed)
+                            vacancies (id, user_id, url, vacancy_id, content, percentage, title, salary, parsed)
                         VALUES 
-                            (default, $1, $2, $3, $4, $5, $6, $7)
+                            (default, $1, $2, $3, $4, $5, $6, $7, $8)
                         """,
                         user.id,
                         vacancy_url,
+                        int(re.findall(r"\d+", vacancy_url)[0]),
                         result.get("content"),
                         result.get("percentage"),
                         result.get("title"),
@@ -87,8 +89,8 @@ async def parse_vacancy_basic_page(page: Page) -> typing.Union[dict, None]:
             visible=True, timeout=1000
         )
         already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath == "Смотреть отклик":
-            return
+        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+            raise ValueError
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
@@ -127,8 +129,8 @@ async def parse_vacancy_stylized_page_v1(page: Page) -> typing.Union[dict, None]
             visible=True, timeout=1000
         )
         already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath == "Смотреть отклик":
-            return
+        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+            raise ValueError
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
@@ -169,8 +171,8 @@ async def parse_vacancy_stylized_page_v2(page: Page) -> typing.Union[dict, None]
             visible=True, timeout=1000
         )
         already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath == "Смотреть отклик":
-            return
+        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+            raise ValueError
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
