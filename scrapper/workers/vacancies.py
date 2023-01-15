@@ -79,12 +79,11 @@ async def prepare_task(
             ON
                 u.id = f.user_id
             WHERE
-                u.id = $1 AND u.curator_id = $2 AND "is_employee" IS FALSE
+                u.id = $1 AND "is_employee" IS FALSE
             ORDER BY
                 u.id
             """,
             int(user_id),
-            curator_id
         )
         if not user:
             await publish_user_message(user, "Не удалось найти фильтр, либо пользователя. %s" % user.resume_url)

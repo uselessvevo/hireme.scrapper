@@ -1,0 +1,1 @@
+AlreadyClicked = type('AlreadyClicked', (), {})

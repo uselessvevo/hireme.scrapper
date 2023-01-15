@@ -24,6 +24,8 @@ async def open_filter_page(page: Page, user: User) -> None:
         "&enable_snippets=true"
         "&page=0" % user.resume_url
     )
+
+    # Iter trough range of pages
     for page_number in range(await get_pages_count(page)):
         # No vacancies were found
         with suppress(Exception):
@@ -61,6 +63,7 @@ async def get_pages_count(page: Page) -> typing.Union[int, None]:
             return int(pages_count)
 
     except Exception:
+        # Default page count
         return 1
 
 
@@ -98,7 +101,7 @@ async def get_vacancies_items(page: Page, user: User) -> None:
                             continue
 
                     await open_vacancy_page(page, user, vacancy_url_xpath)
-                    await asyncio.sleep(random.randrange(60, 85))
+                    await asyncio.sleep(random.randrange(20, 30))
 
         except Exception as e:
             logger.critical("Something went wrong in `parse_vacancies_items`. %s" % e)

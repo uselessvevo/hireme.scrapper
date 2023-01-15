@@ -3,18 +3,20 @@ import typing
 from contextlib import suppress
 
 from pyppeteer.page import Page
+from async_timeout import timeout
 
 from scrapper.structs import User
 from scrapper.loader import logger
 from core.database import DatabaseAsync
 from core.redis import publish_user_message
+from scrapper.types import AlreadyClicked
 
 
 async def open_vacancy_page(page: Page, user: User, vacancy_url: str) -> None:
     """
     Open vacancy page and parse it
     """
-    methods = (
+    page_parser_methods = (
         parse_vacancy_basic_page,
         parse_vacancy_stylized_page_v1,
         parse_vacancy_stylized_page_v2,
@@ -24,9 +26,14 @@ async def open_vacancy_page(page: Page, user: User, vacancy_url: str) -> None:
     await new_page.setViewport({"width": 1920, "height": 1280})
     await new_page.goto(vacancy_url)
 
-    for method in methods:
+    for method in page_parser_methods:
         try:
+            # Start parsing main page info
             result = await method(new_page)
+
+            if isinstance(result, AlreadyClicked):
+                break
+
             if result:
                 await send_letter(new_page, user)
                 async with DatabaseAsync() as conn:
@@ -50,6 +57,7 @@ async def open_vacancy_page(page: Page, user: User, vacancy_url: str) -> None:
                 break
 
         except Exception as e:
+            # Saving vacancy as unable to parse
             async with DatabaseAsync() as conn:
                 await conn.execute(
                     """
@@ -65,6 +73,8 @@ async def open_vacancy_page(page: Page, user: User, vacancy_url: str) -> None:
                     user.id,
                     vacancy_url,
                 )
+
+            # Saving logs
             logger.critical("Can't parse URL: %s by `%s` method" % (vacancy_url, method.__qualname__))
             logger.critical(str(e))
             continue
@@ -86,21 +96,22 @@ async def parse_vacancy_basic_page(page: Page) -> typing.Union[dict, None]:
     with suppress(Exception):
         already_clicked_xpath = await page.waitForXPath(
             "//a[contains(@class,'bloko-button bloko-button_kind-success')]",
-            visible=True, timeout=1000
+            visible=True, timeout=1500
         )
-        already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
-            raise ValueError
+
+    already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
+    if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+        return AlreadyClicked()
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_title_content = await page.evaluate("(element) => element.innerText", vacancy_title_xpath)
 
     vacancy_salary_xpath = await page.waitForXPath(
         "//span[@class='bloko-header-section-2 bloko-header-section-2_lite']",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_salary_content = await page.evaluate("(element) => element.innerText", vacancy_salary_xpath)
 
@@ -126,21 +137,22 @@ async def parse_vacancy_stylized_page_v1(page: Page) -> typing.Union[dict, None]
     with suppress(Exception):
         already_clicked_xpath = await page.waitForXPath(
             "//a[contains(@class,'bloko-button bloko-button_kind-success')]",
-            visible=True, timeout=1000
+            visible=True, timeout=1500
         )
-        already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
-            raise ValueError
+
+    already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
+    if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+        return AlreadyClicked()
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_title_content = await page.evaluate("(element) => element.innerText", vacancy_title_xpath)
 
     vacancy_salary_xpath = await page.waitForXPath(
         "//span[@class='bloko-header-section-2 bloko-header-section-2_lite']",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_salary_content = await page.evaluate("(element) => element.innerText", vacancy_salary_xpath)
 
@@ -168,21 +180,23 @@ async def parse_vacancy_stylized_page_v2(page: Page) -> typing.Union[dict, None]
     with suppress(Exception):
         already_clicked_xpath = await page.waitForXPath(
             "//a[contains(@class,'bloko-button bloko-button_kind-success')]",
-            visible=True, timeout=1000
+            visible=True, timeout=1500
         )
-        already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
-        if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
-            raise ValueError
+
+    already_clicked_xpath = await page.evaluate("(element) => element.innerText", already_clicked_xpath)
+    if already_clicked_xpath in ("Смотреть отклик", "Смотреть приглашение"):
+        return AlreadyClicked()
 
     vacancy_title_xpath = await page.waitForXPath(
         "//h1[@data-qa='vacancy-title']//span[1]",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_title_content = await page.evaluate("(element) => element.innerText", vacancy_title_xpath)
 
+    # //span[@class='bloko-header-section-2 bloko-header-section-2_lite']
     vacancy_salary_xpath = await page.waitForSelector(
         "#a11y-main-content > div:nth-child(4) > span",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_salary_content = await page.evaluate("(element) => element.innerText", vacancy_salary_xpath)
 
@@ -191,7 +205,7 @@ async def parse_vacancy_stylized_page_v2(page: Page) -> typing.Union[dict, None]
         "div.main-content > div:nth-child(2) > div:nth-child(1) > div > "
         "div.bloko-column.bloko-column_xs-4.bloko-column_s-8.bloko-column_m-12.bloko-column_l-16 > "
         "div > div > div > div > div > div > div > div.l-paddings.b-vacancy-desc > div",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     vacancy_content = await page.evaluate("(element) => element.innerText", vacancy_content_selector)
     return {
@@ -216,11 +230,30 @@ async def send_letter(page: Page, user: User) -> None:
     await submit_button_xpath.focus()
     await submit_button_xpath.click()
 
-    send_letter_button_xpath = await page.waitForXPath(
-        '//*[@id="HH-React-Root"]/div/div[4]/div[1]/div/div/'
-        'div/div/div[1]/div[4]/div/div[3]/div/div[1]/div/div/div[10]/button',
-        visible=True, timeout=2000
-    )
+    with suppress(Exception):
+        modal_window_xpath = await page.waitForXPath(
+            "/html/body/div[13]/div/div[1]",
+            timeout=1500, visible=True
+        )
+        await modal_window_xpath.focus()
+        await send_letter_modal_window(page, user)
+
+    with suppress(Exception):
+        await send_letter_basic(page, user)
+
+
+async def send_letter_basic(page: Page, user: User):
+    try:
+        send_letter_button_xpath = await page.waitForXPath(
+            '//*[@id="HH-React-Root"]/div/div[4]/div[1]/div/div/'
+            'div/div/div[1]/div[4]/div/div[3]/div/div[1]/div/div/div[10]/button',
+            visible=True, timeout=2000
+        )
+    except Exception:
+        send_letter_button_xpath = await page.waitForXPath(
+            "//span[text()='Написать сопроводительное']",
+            visible=True, timeout=2000
+        )
     await send_letter_button_xpath.focus()
     await send_letter_button_xpath.click()
 
@@ -235,7 +268,7 @@ async def send_letter(page: Page, user: User) -> None:
 
     letter_form_xpath = await page.waitForXPath(
         "//textarea[@name='text']",
-        visible=True, timeout=1000
+        visible=True, timeout=1500
     )
     await letter_form_xpath.focus()
     async with DatabaseAsync() as conn:
@@ -259,3 +292,38 @@ async def send_letter(page: Page, user: User) -> None:
         return
 
     await publish_user_message(user, 1, "count_vacancies")
+
+
+async def send_letter_modal_window(page: Page, user: User) -> None:
+    with suppress(Exception):
+        letter_expand_button = await page.waitForSelector(
+            '#RESPONSE_MODAL_FORM_ID > div > div > div:nth-child(3) > button',
+            timeout=1500, visible=True
+        )
+        await letter_expand_button.focus()
+        await letter_expand_button.click()
+
+        letter_textarea = await page.waitForSelector(
+            "#RESPONSE_MODAL_FORM_ID > div > div > textarea",
+            timeout=1500, visible=True
+        )
+        await letter_textarea.focus()
+
+        async with DatabaseAsync() as conn:
+            letter_content = await conn.fetchval(
+                """
+                SELECT content FROM letters WHERE user_id = $1
+                """,
+                user.id
+            )
+        if letter_content:
+            await page.keyboard.type(letter_content)
+
+        confirm_button_xpath = await page.waitForXPath(
+            "/html/body/div[13]/div/div[1]/div[5]/div/button[2]",
+            timeout=1500, visible=True
+        )
+        await confirm_button_xpath.focus()
+        await confirm_button_xpath.click()
+
+        await publish_user_message(user, 1, "count_vacancies")
